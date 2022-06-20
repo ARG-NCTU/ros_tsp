@@ -1,5 +1,6 @@
+#! /usr/bin/env python3
 import rospy
-from std_msgs.msg import Int16MultiArray
+from ros_tsp.msg import tspGoalpoint
 from random import uniform
 from dynamic_programming import solve_tsp_held_karp
 from greedy_algorithm import solve_tsp_nearest_neighbor
@@ -9,7 +10,7 @@ import math
 
 class Tsp():
     def __init__(self):
-        self.pub_point = rospy.Publisher("/tsp_goalpoint", Int16MultiArray, queue_size=1)
+        self.pub_point = rospy.Publisher("/tsp_goalpoint", tspGoalpoint, queue_size=1)
         self.offset_x = 0
         self.offset_y = 0
         self.area_length_x = 200
@@ -19,35 +20,37 @@ class Tsp():
         self.point_set = []
         self.permutation = []
         self.distance = 0
-    def dist(p1, p2):
+
+    def dist(self, p1, p2):
         return math.sqrt(((p1-p2)**2).sum())
 
+    def distanceGenerate(self, point_set):
+        return np.asarray([[self.dist(np.array(p1), np.array(p2)) for p2 in point_set] for p1 in point_set])
+    
     def randomGenerate(self, mode):
         rand_point_x = []
         rand_point_y = []
         
         if mode == 'raa':
-            rand_point_x = [(uniform(-area_length_x/2, area_length_x/2) + offset_x) for _ in range(point_num)]
-            rand_point_y = [(uniform(-area_length_y/2, area_length_y/2) + offset_y) for _ in range(point_num)]
+            rand_point_x = [(uniform(-self.area_length_x/2, self.area_length_x/2) + self.offset_x) for _ in range(self.point_num)]
+            rand_point_y = [(uniform(-self.area_length_y/2, self.area_length_y/2) + self.offset_y) for _ in range(self.point_num)]
         elif mode == 'rsa':
-            for _ in range(sub_area_num):
-                generated_x = [(uniform(-area_length_x/2 + i*(area_length_x/sub_area_num), -area_length_x/2 + (i+1)*(area_length_x/sub_area_num))
-                    + offset_x) for _ in range(int(point_num/sub_area_num))]
-                generated_y = [(uniform(-area_length_y/2, area_length_y/2) + offset_y) for _ in range(int(point_num/sub_area_num))]
+            for i in range(self.sub_area_num):
+                generated_x = [(uniform(-self.area_length_x/2 + i*(self.area_length_x/self.sub_area_num), -self.area_length_x/2 + (i+1)*(self.area_length_x/self.sub_area_num))
+                    + self.offset_x) for _ in range(int(self.point_num/self.sub_area_num))]
+                generated_y = [(uniform(-self.area_length_y/2, self.area_length_y/2) + self.offset_y) for _ in range(int(self.point_num/self.sub_area_num))]
                 rand_point_x.extend(generated_x)
                 rand_point_y.extend(generated_y)
         else:
             print("Wrong input")
             return
-        for i in range(point_num):
+        for i in range(self.point_num):
             self.point_set.append([rand_point_x[i], rand_point_y[i]])
         return
 
-    def distanceGenerate(self, point_set):
-        return np.asarray([[dist(np.array(p1), np.array(p2)) for p2 in point_set] for p1 in point_set])
-    
+
     def run(self, mode):
-        distance_matrix = distanceGenerate(self.point_set)
+        distance_matrix = self.distanceGenerate(self.point_set)
         if mode == 'heuristics':
             self.permutation, self.distance = solve_tsp_simulated_annealing(distance_matrix)
         elif mode == 'greedy':
@@ -58,15 +61,15 @@ class Tsp():
             print('Wrong input')
         return
     def publish(self):
-        tsp_result = Int16MultiArray()
-        tsp_result.data = 0
+        tsp_result = goalpoint()
+        point_set_sorted = [x for _, x in sorted(zip(self.permutation, self.point_set))]
+        point_x, point_y = np.array(point_set_sorted).T
+        tsp_result.data_x = list(point_x)
+        tsp_result.data_y = list(point_y)
         self.pub_point.publish(tsp_result)
         return
 
-### assemble point set
-for i in range(point_num):
-    point_set.append([rand_point_x[i], rand_point_y[i]])
-    
+
 
 if __name__ == '__main__':
     rospy.init_node('tsp_generator', anonymous=False)
