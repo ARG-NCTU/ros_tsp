@@ -59,9 +59,11 @@ class Tsp():
             self.permutation, self.distance = solve_tsp_held_karp(distance_matrix)
         else:
             print('Wrong input')
+        print('Finish optimize')
         return
     def publish(self):
-        tsp_result = goalpoint()
+        print('Pushing msg...')
+        tsp_result = tspGoalpoint()
         point_set_sorted = [x for _, x in sorted(zip(self.permutation, self.point_set))]
         point_x, point_y = np.array(point_set_sorted).T
         tsp_result.data_x = list(point_x)
@@ -78,4 +80,6 @@ if __name__ == '__main__':
     multi_goalpoint.randomGenerate('rsa')
     # input: heuristics, greedy, dynamic
     multi_goalpoint.run("heuristics")
-    multi_goalpoint.publish()
+    while not rospy.is_shutdown():
+        multi_goalpoint.publish()
+    
